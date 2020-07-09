@@ -6,6 +6,10 @@
 #include <errno.h>
 #include <unistd.h>
 #include <pwd.h>
+#include <fcntl.h>
+#include <sys/wait.h>
+
+typedef int BOOL;
 
 static void getShellInfo(char *shell_info) {
     // 获取用户名
@@ -49,6 +53,58 @@ static void getShellInfo(char *shell_info) {
     }
 }
 
+static int getCmd(char *cmd_line, char **params) {
+    int cmd_num = 0;
+    char str[200];
+    char *buf;
+    memset(params, 0, sizeof(params));
+    buf = strtok(cmd_line, " ");
+    while(buf != NULL) {
+        params[cmd_num] = (char*)malloc(sizeof(*buf));
+        strcpy(params[cmd_num++], buf);
+        buf = strtok(NULL, " ");
+    }
+    params[cmd_num] = NULL;
+    return cmd_num;
+}
+
+static void execCmd(int socketfd, int cmd_num, char **params) {
+    pid_t pid;
+    int i;
+    int newFd;
+    BOOL redirect_file = 0;
+    for (int i=0; i<cmd_num; i++) {
+        if (strcmp(params[i], ">") == 0) {
+            redirect_file = 1;
+            params[i] = NULL;
+            // O_RDWR  O_CREAT fcntl.h
+            newFd = open(params[i+1], O_RDWR | O_CREAT, 400, 200);
+            if (newFd == -1) {
+                perror("Open redirect file error: ");
+                exit(0);
+            }
+            break;
+        }
+    }
+    pid = fork();
+    if (pid == 0) {
+        if (redirect_file) {
+            dup2(newFd, STDOUT_FILENO);
+            close(newFd);
+            if(execvp(params[0], params) < 0) {
+                perror("Exec cmd error(redirect_file)");
+            }
+        } else {
+            dup2(socketfd, STDOUT_FILENO);
+            printf("%s, %d", params[0], cmd_num);
+            if (execvp(params[0], params) < 0) {
+                perror("Exec cmd error");
+            }
+        }
+    }
+    wait(NULL);
+}
+
 int main() {
     int st = socket(AF_INET, SOCK_STREAM, 0);
     if (-1 == st) {
@@ -75,11 +131,13 @@ int main() {
     struct sockaddr_in client_addr;
     socklen_t len;
     int client_st = 0;
-    char cmd_line[256];
+    char cmd_line[400];
     char shell_info[512];
+    char *params[20];
+    char *cmd_name;
     while(1) {
         memset(&client_addr, 0, sizeof(client_addr));
-
+ 
         len = sizeof(client_addr);
         client_st = accept(st, (struct sockaddr*)&client_addr, &len);
         if (-1 == client_st) {
@@ -88,16 +146,21 @@ int main() {
         }
 
         while(1) {
+            // 获取 shell 基本信息，并返回给客户端
             memset(shell_info, 0, sizeof(shell_info));
             getShellInfo(shell_info);
             if (-1 == write(client_st, shell_info, strlen(shell_info))) {
                 perror("Write error: ");
                 return EXIT_FAILURE;
             }
+            // 接收命令行
             memset(cmd_line, 0, sizeof(cmd_line));
             int rv = recv(client_st, cmd_line, sizeof(cmd_line), 0);
+
             if (rv > 0) {
-                printf("%s\n", cmd_line);
+                int cmd_num = getCmd(cmd_line, params);
+                strcat(cmd_line, " ");
+                execCmd(client_st, cmd_num, params);
             } else if (rv == 0) {
                 break;
             } else {
