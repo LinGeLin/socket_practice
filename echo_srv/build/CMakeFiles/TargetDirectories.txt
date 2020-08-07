@@ -1,0 +1,2 @@
+/home/lin/socket_practice_echo_srv/build/CMakeFiles/echo_cli.dir
+/home/lin/socket_practice_echo_srv/build/CMakeFiles/echo_srv.dir

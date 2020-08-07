@@ -1,0 +1,30 @@
+#IncludeRegexLine: ^[ 	]*#[ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/lin/socket_practice_echo_srv/str_echo.c
+unp.h
+/home/lin/socket_practice_echo_srv/unp.h
+
+/home/lin/socket_practice_echo_srv/unp.h
+stdio.h
+-
+unistd.h
+-
+arpa/inet.h
+-
+string.h
+-
+sys/socket.h
+-
+stdlib.h
+-
+errno.h
+-
+sys/wait.h
+-
+
