@@ -1,5 +1,5 @@
 #include    "unp.h"
-/*
+
 void str_echo(int sockfd) {
     ssize_t n;
     char buf[MAXLINE];
@@ -8,8 +8,8 @@ void str_echo(int sockfd) {
         write(sockfd, buf, n);
     }
 }
-*/
 
+/*
 void str_echo(int sockfd) {
     long arg1, arg2;
     ssize_t n;
@@ -29,3 +29,4 @@ void str_echo(int sockfd) {
 	write(sockfd, line, n);
     }
 }
+*/
