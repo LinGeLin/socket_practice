@@ -1,1 +1,0 @@
-/usr/bin/cc      CMakeFiles/echo_cli.dir/echo_client.c.o CMakeFiles/echo_cli.dir/str_cli.c.o  -o echo_cli -rdynamic 

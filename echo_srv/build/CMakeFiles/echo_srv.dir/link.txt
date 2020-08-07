@@ -1,1 +1,0 @@
-/usr/bin/cc      CMakeFiles/echo_srv.dir/echo_service.c.o CMakeFiles/echo_srv.dir/str_echo.c.o CMakeFiles/echo_srv.dir/error.c.o  -o echo_srv -rdynamic 
