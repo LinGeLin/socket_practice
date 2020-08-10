@@ -1,21 +1,11 @@
 #include    "unp.h"
 
-void sig_chld(int signo) {
-    pid_t pid;
-    int stat;
-    // 通过stat指针返回子进程终止状态
-    // 正常终止、信号杀死、作业控制停止
-    // pid = wait(&stat);
-    
-    // 防止同一信号多次提交导致子进程僵死
-    while((pid = waitpid(-1, &stat, WNOHANG)) > 0) {
-	// do nothing
-    }
-}
-
 int main(int argc, char **argv) {
-    int listenfd, connfd;
-    pid_t childpid;
+    int i, maxi, maxfd, listenfd, connfd, sockfd;
+	int nready, client[FD_SETSIZE];
+	size_t n;
+	fd_set rset, allset;
+	char buf[MAXLINE];
     socklen_t clilen;
     struct sockaddr_in cliaddr, servaddr;
     
@@ -28,15 +18,66 @@ int main(int argc, char **argv) {
 
     bind(listenfd, (struct sockaddr*)&servaddr, sizeof(servaddr));
     listen(listenfd, LISTENQ);
-    signal(SIGCHLD, sig_chld);
+
+	maxfd = listenfd;
+	maxi = -1;	// client 数组当前使用项的最大下标
+	for(i=0; i<FD_SETSIZE; i++) {
+		client[i] = -1;
+	}
+	FD_ZERO(&allset);
+	FD_SET(listenfd, &allset);
+
     for(;;) {
-        clilen = sizeof(cliaddr);
-        connfd = accept(listenfd, (struct sockaddr*)&cliaddr, &clilen);
-        if ((childpid = fork()) == 0) {
-            close(listenfd);
-            str_echo(connfd);
-            exit(0);
-        }
-        close(connfd);
+		rset = allset;
+		nready = select(maxfd+1, &rset, NULL, NULL, NULL);
+		
+		if(FD_ISSET(listenfd, &rset)) {
+			clilen = sizeof(cliaddr);
+			connfd = accept(listenfd, (struct sockaddr*)&cliaddr, &clilen);
+
+			for (i=0; i<FD_SETSIZE; i++) {
+				if (client[i] < 0 ) {
+					client[i] = connfd;
+					break;
+				}
+			}
+
+			if (i == FD_SETSIZE) {
+				exit(0);
+			}
+
+			FD_SET(connfd, &allset);
+			if (connfd > maxfd) {
+				maxfd = connfd;
+			}
+
+			if (i > maxi) {
+				maxi = i;
+			}
+
+			if (--nready <= 0) {
+				continue;
+			}
+		}
+
+		for (i = 0; i <= maxi; i++) {
+			if ((sockfd = client[i]) < 0) {
+				continue;
+			}
+
+			if (FD_ISSET(sockfd, &rset)) {
+				if ( ( n = read(sockfd, buf, MAXLINE)) == 0) {
+					close(sockfd);
+					FD_CLR(sockfd, &allset);
+					client[i] = -1;
+				} else {
+					write(sockfd, buf, n);
+				}
+
+				if (--nready <= 0) {
+					break;
+				}
+			}
+		}
     }
 }
